@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DecisionAI — Smart Life Decision Engine</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⬡</text></svg>"/>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<div class="scan-line"></div>
+<canvas id="grid-canvas" class="grid-bg" aria-hidden="true"></canvas>
+
+<!-- ══════════════════════════════════════════════
+     CONFIG ERROR
+══════════════════════════════════════════════ -->
+<div id="screen-config-error" class="screen hidden">
+  <div class="center-screen">
+    <span class="hex-icon xl">⬡</span>
+    <h1 class="brand-name" style="margin:.5rem 0">DecisionAI</h1>
+    <div class="error-card">
+      <div class="error-title">⚠ Configuration Required</div>
+      <p style="color:var(--text-2);margin-bottom:1rem">Open <code>config.js</code> and fill in your credentials, then push to GitHub.</p>
+      <pre class="code-block">SUPABASE_URL:         'https://xxxx.supabase.co'
+SUPABASE_ANON_KEY:    'eyJhbGci...'
+SUPABASE_SERVICE_KEY: 'eyJhbGci...'</pre>
+      <p style="margin-top:.875rem;font-size:.8rem;color:var(--text-3)">
+        Get all three from <strong style="color:var(--text-2)">supabase.com → Your Project → Settings → API</strong>
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     MIGRATION SCREEN — auto schema setup
+══════════════════════════════════════════════ -->
+<div id="screen-migration" class="screen hidden">
+  <div class="center-screen">
+    <span class="hex-icon xl">⬡</span>
+    <h1 class="brand-name" style="margin:.5rem 0">DecisionAI</h1>
+    <div class="migration-card">
+      <div class="mig-title mono">DATABASE SETUP</div>
+      <div class="mig-log" id="mig-log"></div>
+      <div class="mig-spinner" id="mig-spinner">
+        <span class="loading lg"></span>
+        <span id="mig-status">Initializing…</span>
+      </div>
+      <div id="mig-error" class="mig-error hidden"></div>
+      <button id="mig-retry-btn" class="btn btn-prime full hidden" onclick="runMigration()">↻ Retry</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     AUTH SCREEN
+══════════════════════════════════════════════ -->
+<div id="screen-auth" class="screen hidden">
+  <div class="auth-shell">
+
+    <div class="auth-left">
+      <div class="auth-brand">
+        <span class="hex-icon xl">⬡</span>
+        <h1 class="brand-name">DecisionAI</h1>
+        <p class="brand-sub">Smart Life Decision Engine</p>
+      </div>
+      <ul class="feature-list">
+        <li><span class="mono text-cyan">01</span> Weighted multi-criteria scoring engine</li>
+        <li><span class="mono text-cyan">02</span> AI-powered summaries &amp; predictions</li>
+        <li><span class="mono text-cyan">03</span> Radar, bar &amp; timeline Chart.js visuals</li>
+        <li><span class="mono text-cyan">04</span> Risk personality adaptation</li>
+        <li><span class="mono text-cyan">05</span> Full history with search &amp; filters</li>
+        <li><span class="mono text-cyan">06</span> Instant ⬡ Decide For Me engine</li>
+        <li><span class="mono text-cyan">07</span> Admin panel — weights, users, analytics</li>
+      </ul>
+      <div class="auth-tech-badges">
+        <span class="tech-badge">⬡ Supabase</span>
+        <span class="tech-badge">◈ OpenAI</span>
+        <span class="tech-badge">◎ Chart.js 4</span>
+        <span class="tech-badge">◷ GitHub Pages</span>
+      </div>
+    </div>
+
+    <div class="auth-right">
+      <div class="auth-card">
+        <div class="tab-row">
+          <button class="tab active" data-tab="login">Sign In</button>
+          <button class="tab" data-tab="signup">Sign Up</button>
+        </div>
+
+        <form id="form-login" class="auth-form">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="you@example.com" required autocomplete="email"/>
+          </div>
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" required/>
+          </div>
+          <button type="submit" class="btn btn-prime full" id="btn-login">Sign In →</button>
+        </form>
+
+        <form id="form-signup" class="auth-form hidden">
+          <div class="field">
+            <label>Full Name</label>
+            <input type="text" id="signup-name" placeholder="Jane Smith" required/>
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="signup-email" placeholder="you@example.com" required/>
+          </div>
+          <div class="field">
+            <label>Password <span class="hint">(min 8 chars)</span></label>
+            <input type="password" id="signup-password" placeholder="Create a strong password" required minlength="8"/>
+          </div>
+          <button type="submit" class="btn btn-prime full" id="btn-signup">Create Account ⬡</button>
+        </form>
+
+        <div id="auth-msg" class="auth-msg hidden"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     APP SCREEN
+══════════════════════════════════════════════ -->
+<div id="screen-app" class="screen hidden">
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sb-brand">
+      <span class="hex-icon sm">⬡</span>
+      <span class="sb-title">DecisionAI</span>
+    </div>
+    <nav class="sb-nav">
+      <a class="nav-link active" data-page="dashboard"><span class="nav-ic">◈</span>Dashboard</a>
+      <a class="nav-link" data-page="new"><span class="nav-ic">◎</span>New Decision</a>
+      <a class="nav-link" data-page="history"><span class="nav-ic">◷</span>History</a>
+      <a class="nav-link" data-page="profile"><span class="nav-ic">◉</span>Profile</a>
+      <a class="nav-link" id="nav-admin" data-page="admin" style="display:none"><span class="nav-ic">◬</span>Admin</a>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-user">
+        <div class="avatar" id="sb-avatar">?</div>
+        <span class="sb-uname mono" id="sb-uname">—</span>
+      </div>
+      <button class="icon-btn" id="btn-logout" title="Sign out">⏏</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="icon-btn mobile-menu-btn" id="mobile-menu-btn">☰</button>
+        <span id="page-heading" class="page-heading">Dashboard</span>
+      </div>
+      <div class="topbar-right">
+        <span class="status-dot" id="status-dot"></span>
+        <button class="btn btn-prime btn-sm" onclick="gotoPage('new')">+ New Decision</button>
+      </div>
+    </header>
+
+    <!-- DASHBOARD -->
+    <section id="page-dashboard" class="page active">
+      <div class="kpi-grid">
+        <div class="kpi-card"><div class="kpi-val" id="kpi-total">—</div><div class="kpi-label">Total Decisions</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpi-analyzed">—</div><div class="kpi-label">Analyzed</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpi-conf">—</div><div class="kpi-label">Avg Confidence</div></div>
+        <div class="kpi-card"><div class="kpi-val" id="kpi-ai">—</div><div class="kpi-label">AI Insights</div></div>
+      </div>
+      <div class="charts-row">
+        <div class="chart-box"><div class="chart-title">Activity Timeline</div><canvas id="chart-timeline" height="180"></canvas></div>
+        <div class="chart-box"><div class="chart-title">By Category</div><canvas id="chart-cats" height="180"></canvas></div>
+      </div>
+      <div class="section-head"><h2>Recent Decisions</h2></div>
+      <div id="list-recent" class="dec-list">
+        <div class="empty-state"><span class="empty-icon">◈</span>No decisions yet — create your first one!</div>
+      </div>
+    </section>
+
+    <!-- NEW DECISION -->
+    <section id="page-new" class="page hidden">
+      <div class="wizard-wrap">
+        <div class="wizard-progress">
+          <div class="wp-step active" id="wp-1"><span>1</span>Basics</div>
+          <div class="wp-line" id="wl-1"></div>
+          <div class="wp-step" id="wp-2"><span>2</span>Options</div>
+          <div class="wp-line" id="wl-2"></div>
+          <div class="wp-step" id="wp-3"><span>3</span>Analyze</div>
+        </div>
+        <div class="wiz-step" id="wiz-1">
+          <h2 class="step-title">What are you deciding?</h2>
+          <div class="field">
+            <label>Decision Title <span class="req">*</span></label>
+            <input id="new-title" type="text" placeholder="e.g. Should I accept the job offer in NYC?" maxlength="300"/>
+          </div>
+          <div class="field">
+            <label>Context / Background</label>
+            <textarea id="new-desc" rows="3" placeholder="Add constraints, deadlines, important context…"></textarea>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Category</label>
+              <select id="new-cat">
+                <option value="">— Select —</option>
+                <option value="career">💼 Career</option>
+                <option value="finance">💰 Finance</option>
+                <option value="relationships">❤️ Relationships</option>
+                <option value="health">🏃 Health</option>
+                <option value="education">🎓 Education</option>
+                <option value="lifestyle">🌟 Lifestyle</option>
+                <option value="business">🚀 Business</option>
+                <option value="travel">✈️ Travel</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Risk Profile</label>
+              <select id="new-risk-profile">
+                <option value="conservative">🛡 Conservative</option>
+                <option value="balanced" selected>⚖ Balanced</option>
+                <option value="aggressive">🚀 Aggressive</option>
+              </select>
+            </div>
+          </div>
+          <div class="wiz-actions">
+            <button class="btn btn-prime" onclick="wizNext(2)">Add Options →</button>
+          </div>
+        </div>
+
+        <div class="wiz-step hidden" id="wiz-2">
+          <h2 class="step-title">Add Your Options <span class="mono text-cyan" id="opt-count-badge">(2)</span></h2>
+          <div id="options-list"></div>
+          <button class="btn btn-outline" onclick="addOptionRow()">+ Add Option</button>
+          <div class="wiz-actions">
+            <button class="btn btn-ghost" onclick="wizNext(1)">← Back</button>
+            <button class="btn btn-prime" onclick="wizNext(3)">Review →</button>
+          </div>
+        </div>
+
+        <div class="wiz-step hidden" id="wiz-3">
+          <h2 class="step-title">Review &amp; Launch Analysis</h2>
+          <div id="review-box" class="review-panel"></div>
+          <div class="wiz-actions">
+            <button class="btn btn-ghost" onclick="wizNext(2)">← Back</button>
+            <button class="btn btn-prime btn-glow" id="btn-analyze" onclick="submitDecision()">⬡ Run Analysis</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="page-history" class="page hidden">
+      <div class="filter-bar">
+        <input id="hist-search" type="text" placeholder="🔍 Search decisions…" oninput="renderHistory()" class="search-inp"/>
+        <select id="hist-cat" onchange="renderHistory()">
+          <option value="">All Categories</option>
+          <option value="career">💼 Career</option>
+          <option value="finance">💰 Finance</option>
+          <option value="relationships">❤️ Relationships</option>
+          <option value="health">🏃 Health</option>
+          <option value="education">🎓 Education</option>
+          <option value="lifestyle">🌟 Lifestyle</option>
+          <option value="business">🚀 Business</option>
+          <option value="travel">✈️ Travel</option>
+        </select>
+        <select id="hist-status" onchange="renderHistory()">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="analyzed">Analyzed</option>
+          <option value="decided">Decided</option>
+          <option value="completed">Completed</option>
+        </select>
+      </div>
+      <div id="list-history" class="dec-list"></div>
+    </section>
+
+    <!-- DETAIL -->
+    <section id="page-detail" class="page hidden">
+      <button class="btn btn-ghost back-btn" onclick="goBack()">← Back</button>
+      <div id="detail-content"></div>
+    </section>
+
+    <!-- PROFILE -->
+    <section id="page-profile" class="page hidden">
+      <div class="profile-layout">
+        <div class="profile-info-card card">
+          <div class="prof-avatar" id="prof-avatar-big">?</div>
+          <div class="prof-name" id="prof-name-big">—</div>
+          <div class="prof-email mono" id="prof-email-big">—</div>
+          <div class="badge-row" id="prof-badges"></div>
+          <div class="divider"></div>
+          <div class="field">
+            <label>Display Name</label>
+            <input type="text" id="prof-name-input" placeholder="Your name"/>
+          </div>
+          <div class="field">
+            <label>Risk Personality</label>
+            <select id="prof-risk">
+              <option value="conservative">🛡 Conservative</option>
+              <option value="balanced">⚖ Balanced</option>
+              <option value="aggressive">🚀 Aggressive</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>OpenAI API Key <span class="hint">(stored locally only)</span></label>
+            <input type="password" id="prof-openai" placeholder="sk-… unlocks AI features"/>
+          </div>
+          <button class="btn btn-prime full" onclick="saveProfile()">Save Changes ✓</button>
+        </div>
+        <div class="profile-stats-col">
+          <div class="card">
+            <div class="chart-title">Decision Categories</div>
+            <canvas id="chart-profile-cats" height="220"></canvas>
+          </div>
+          <div class="card" style="margin-top:1rem">
+            <div class="chart-title">Confidence Distribution</div>
+            <canvas id="chart-profile-conf" height="180"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ADMIN -->
+    <section id="page-admin" class="page hidden">
+      <div class="admin-grid">
+        <div class="card">
+          <div class="card-head">⚙ Scoring Weights</div>
+          <p class="card-sub">Adjust how each factor influences the score. Must total 100%.</p>
+          <div id="weights-sliders"></div>
+          <div class="weights-total mono">Total: <span id="w-total" style="color:var(--green)">100%</span></div>
+          <button class="btn btn-prime" style="margin-top:.75rem" onclick="saveWeights()">Save Weights</button>
+        </div>
+        <div class="card">
+          <div class="card-head">📊 Platform Overview</div>
+          <div class="admin-kpis">
+            <div class="admin-kpi"><span class="v" id="ak-users">—</span><span class="l">Users</span></div>
+            <div class="admin-kpi"><span class="v" id="ak-decs">—</span><span class="l">Decisions</span></div>
+            <div class="admin-kpi"><span class="v" id="ak-analyzed">—</span><span class="l">Analyzed</span></div>
+          </div>
+          <canvas id="chart-admin-status" height="180"></canvas>
+        </div>
+        <div class="card full-span">
+          <div class="card-head-row">
+            <span class="card-head">👥 Users</span>
+            <input id="admin-user-search" type="text" placeholder="Search by email…" class="search-inp sm" oninput="loadAdminUsers()"/>
+          </div>
+          <div id="admin-users-table">Loading…</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- MODALS -->
+<div id="modal-decide" class="modal-overlay hidden">
+  <div class="modal-box modal-sm"><button class="modal-x" onclick="closeModal('modal-decide')">✕</button><div id="modal-decide-body"></div></div>
+</div>
+<div id="modal-ai" class="modal-overlay hidden">
+  <div class="modal-box"><button class="modal-x" onclick="closeModal('modal-ai')">✕</button><div id="modal-ai-body"></div></div>
+</div>
+
+<div id="toasts" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
